@@ -83,18 +83,18 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    #traindir = os.path.join(args.data, 'train')
+    traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
 
-    # train_loader = torch.utils.data.DataLoader(
-    #     datasets.ImageFolder(traindir, transforms.Compose([
-    #         transforms.RandomSizedCrop(max(model.input_size)),
-    #         transforms.RandomHorizontalFlip(),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=True,
-    #     num_workers=args.workers, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(
+        datasets.ImageFolder(traindir, transforms.Compose([
+            transforms.RandomSizedCrop(max(model.input_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ])),
+        batch_size=args.batch_size, shuffle=True,
+        num_workers=args.workers, pin_memory=True)
 
     
 
