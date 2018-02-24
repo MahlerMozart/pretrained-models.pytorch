@@ -25,7 +25,7 @@ pretrained_settings = {
             'num_classes': 1001
         }
     },
-    'nasnetmobile': {
+    'nasnetamobile': {
         'imagenet': {
             # 'url': 'http://data.lip6.fr/cadene/pretrainedmodels/nasnetalarge-a1897284.pth',
             'input_space': 'RGB',
@@ -747,9 +747,45 @@ class NASNetAMobile(nn.Module):
 
     def forward(self, input):
         x = self.features(input)
-        print("for avg pool {}".format(self.features(input).data.size()[2:]))
         x = self.logits(x)
         return x
+
+
+def nasnetamobile(num_classes=1001, pretrained='imagenet'):
+    r"""NASNetALarge model architecture from the
+    `"NASNet" <https://arxiv.org/abs/1707.07012>`_ paper.
+    """
+    if pretrained:
+        settings = pretrained_settings['nasnetalarge'][pretrained]
+        assert num_classes == settings['num_classes'], \
+            "num_classes should be {}, but is {}".format(settings['num_classes'], num_classes)
+
+        # both 'imagenet'&'imagenet+background' are loaded from same parameters
+        model = NASNetALarge(num_classes=1001)
+        model.load_state_dict(model_zoo.load_url(settings['url']))
+
+        if pretrained == 'imagenet':
+            new_last_linear = nn.Linear(model.last_linear.in_features, 1000)
+            new_last_linear.weight.data = model.last_linear.weight.data[1:]
+            new_last_linear.bias.data = model.last_linear.bias.data[1:]
+            model.last_linear = new_last_linear
+
+        model.input_space = settings['input_space']
+        model.input_size = settings['input_size']
+        model.input_range = settings['input_range']
+
+        model.mean = settings['mean']
+        model.std = settings['std']
+    else:
+        settings = pretrained_settings['nasnetamobile']['imagenet']
+        model = NASNetAMobile(num_classes=num_classes)
+        model.input_space = settings['input_space']
+        model.input_size = settings['input_size']
+        model.input_range = settings['input_range']
+
+        model.mean = settings['mean']
+        model.std = settings['std']
+    return model
 
 
 if __name__ == "__main__":

@@ -17,22 +17,24 @@ sys.path.append('.')
 import pretrainedmodels
 import pretrainedmodels.utils
 
+from pretrainedmodels.models.nasnet import nasnetalarge
+
 model_names = sorted(name for name in pretrainedmodels.__dict__
     if not name.startswith("__")
     and name.islower()
     and callable(pretrainedmodels.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
+parser.add_argument('--data', metavar='DIR', default='path_to_imagenet',
                     help='path to dataset')
-parser.add_argument('--arch', '-a', metavar='ARCH', default='fbresnet152',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='nasnetamobile',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: fbresnet152)')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=32, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -46,13 +48,14 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
+parser.add_argument('--resume', default=False, type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
-parser.add_argument('--pretrained', default='imagenet', help='use pre-trained model')
+parser.add_argument('--pretrained', default='no', help='use pre-trained model')
 
 best_prec1 = 0
+
 
 def main():
     global args, best_prec1
@@ -65,7 +68,7 @@ def main():
         model = pretrainedmodels.__dict__[args.arch](num_classes=1000,
                                                      pretrained=args.pretrained)
     else:
-        model = pretrainedmodels.__dict__[args.arch]()
+        model = pretrainedmodels.__dict__[args.arch](num_classes=1000, pretrained=False)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -88,20 +91,19 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomSizedCrop(max(model.input_size)),
+            transforms.RandomResizedCrop(max(model.input_size)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            normalize,
+            transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                 std=[0.5, 0.5, 0.5])
         ])),
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    
-
-    if 'scale' in pretrainedmodels.pretrained_settings[args.arch][args.pretrained]:
-        scale = pretrainedmodels.pretrained_settings[args.arch][args.pretrained]['scale']
-    else:
-        scale = 0.875
+    # if 'scale' in pretrainedmodels.pretrained_settings[args.arch][args.pretrained]:
+    #     scale = pretrainedmodels.pretrained_settings[args.arch][args.pretrained]['scale']
+    # else:
+    scale = 0.875
 
     print('Images transformed from size {} to {}'.format(
         int(round(max(model.input_size)/scale)),
@@ -117,9 +119,11 @@ def main():
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    # optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    #                             momentum=args.momentum,
+    #                             weight_decay=args.weight_decay)
+
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=args.lr, alpha=0.99, eps=1, weight_decay=0.9, momentum=0)
 
     model = torch.nn.DataParallel(model).cuda()
 
